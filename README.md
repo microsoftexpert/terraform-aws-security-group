@@ -38,17 +38,17 @@ Whether it's a star, a professional connection, or a coffee, every gesture helps
 
 ## 🗺️ Where this fits in the family
 
-`tf-mod-aws-security-group` sits in the **networking** layer alongside `tf-mod-aws-network-acl`. It consumes `vpc_id` from `tf-mod-aws-vpc` and emits an `id` that compute, load-balancing, database, and endpoint modules attach to their ENIs.
+`terraform-aws-security-group` sits in the **networking** layer alongside `terraform-aws-network-acl`. It consumes `vpc_id` from `terraform-aws-vpc` and emits an `id` that compute, load-balancing, database, and endpoint modules attach to their ENIs.
 
 ```mermaid
 flowchart LR
- vpc["tf-mod-aws-vpc<br/>vpc_id"]
- sg["tf-mod-aws-security-group<br/>(stateful, ENI-level)"]
- nacl["tf-mod-aws-network-acl<br/>(stateless, subnet-level)"]
- lb["tf-mod-aws-lb"]
- rds["tf-mod-aws-rds"]
- ec2["tf-mod-aws-ec2-instance"]
- vpce["tf-mod-aws-vpc-endpoint"]
+ vpc["terraform-aws-vpc<br/>vpc_id"]
+ sg["terraform-aws-security-group<br/>(stateful, ENI-level)"]
+ nacl["terraform-aws-network-acl<br/>(stateless, subnet-level)"]
+ lb["terraform-aws-lb"]
+ rds["terraform-aws-rds"]
+ ec2["terraform-aws-ec2-instance"]
+ vpce["terraform-aws-vpc-endpoint"]
 
  vpc -->|"vpc_id"| sg
  vpc -->|"vpc_id"| nacl
@@ -67,7 +67,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
- subgraph mod["tf-mod-aws-security-group"]
+ subgraph mod["terraform-aws-security-group"]
  sg["aws_security_group.this<br/>(keystone)<br/>name_prefix + vpc_id + create_before_destroy"]
  ing["aws_vpc_security_group_ingress_rule.this<br/>for_each ingress_rules"]
  egr["aws_vpc_security_group_egress_rule.this<br/>for_each egress_rules"]
@@ -125,7 +125,7 @@ Least-privilege actions the **Terraform execution identity** needs to manage thi
 
 - **No service-linked role** is required for security groups.
 - **No account opt-in** is required.
-- **VPC must exist.** Wire `vpc_id` from `tf-mod-aws-vpc`. The SG is **regional and VPC-scoped** — it must be created in the same Region as the VPC it belongs to. Default-VPC use is discouraged in a regulated environment.
+- **VPC must exist.** Wire `vpc_id` from `terraform-aws-vpc`. The SG is **regional and VPC-scoped** — it must be created in the same Region as the VPC it belongs to. Default-VPC use is discouraged in a regulated environment.
 - **Referenced sources must exist in scope.** A `referenced_security_group_id` must be a peer SG in the same VPC (or an accepted VPC-peering / Transit Gateway path); a `prefix_list_id` must be a managed or AWS-managed prefix list reachable from the VPC.
 - **Region.** Do **not** set a `region` variable; the caller's provider configuration selects the Region. There is **no `us-east-1` global-resource constraint** for security groups.
 - **Quotas** (per [Amazon VPC quotas → Security groups](https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html)):
@@ -139,7 +139,7 @@ Least-privilege actions the **Terraform execution identity** needs to manage thi
 ## 📁 Module Structure
 
 ```
-tf-mod-aws-security-group/
+terraform-aws-security-group/
 ├── providers.tf # required_providers (aws >= 6.0, < 7.0); no provider block; region/provider notes
 ├── variables.tf # name → name_prefix → vpc_id → description → revoke_rules_on_delete → ingress_rules → egress_rules → tags
 ├── main.tf # aws_security_group.this + ingress_rule (for_each) + egress_rule (for_each)
@@ -152,11 +152,11 @@ tf-mod-aws-security-group/
 
 ## ⚙️ Quick Start
 
-Smallest working call — an app SG allowing HTTPS in from an ALB SG and Postgres out to the database subnets, wired from `tf-mod-aws-vpc`:
+Smallest working call — an app SG allowing HTTPS in from an ALB SG and Postgres out to the database subnets, wired from `terraform-aws-vpc`:
 
 ```hcl
 module "app_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-app-" # preferred over a fixed name (create_before_destroy-safe)
   vpc_id      = module.vpc.vpc_id
@@ -185,10 +185,10 @@ module "app_sg" {
 
 | Input | Type | Source module |
 |---|---|---|
-| `vpc_id` | `string` (VPC id) | `tf-mod-aws-vpc` |
-| `ingress_rules[*].referenced_security_group_id` | `string` (SG id) | `tf-mod-aws-security-group` (peer SG) |
-| `egress_rules[*].referenced_security_group_id` | `string` (SG id) | `tf-mod-aws-security-group` (peer SG) |
-| `*.prefix_list_id` | `string` (PL id) | `tf-mod-aws-vpc-endpoint` (gateway-endpoint prefix list) / managed prefix lists |
+| `vpc_id` | `string` (VPC id) | `terraform-aws-vpc` |
+| `ingress_rules[*].referenced_security_group_id` | `string` (SG id) | `terraform-aws-security-group` (peer SG) |
+| `egress_rules[*].referenced_security_group_id` | `string` (SG id) | `terraform-aws-security-group` (peer SG) |
+| `*.prefix_list_id` | `string` (PL id) | `terraform-aws-vpc-endpoint` (gateway-endpoint prefix list) / managed prefix lists |
 
 > Networking module — it needs `vpc_id` from an upstream VPC; rules are optional (omit to leave the SG closed in both directions).
 
@@ -196,7 +196,7 @@ module "app_sg" {
 
 | Output | Description | Consumed by |
 |---|---|---|
-| `id` | SG id (`sg-…`) | `tf-mod-aws-ec2-instance`, `tf-mod-aws-lb`, `tf-mod-aws-rds`, `tf-mod-aws-ecs-service`, `tf-mod-aws-eks`, `tf-mod-aws-vpc-endpoint`, `tf-mod-aws-elasticache`, peer SG `referenced_security_group_id` |
+| `id` | SG id (`sg-…`) | `terraform-aws-ec2-instance`, `terraform-aws-lb`, `terraform-aws-rds`, `terraform-aws-ecs-service`, `terraform-aws-eks`, `terraform-aws-vpc-endpoint`, `terraform-aws-elasticache`, peer SG `referenced_security_group_id` |
 | `arn` | SG ARN `arn:aws:ec2:<region>:<account>:security-group/<id>` — the cross-resource reference type | IAM / SCP policy resource references |
 | `security_group_id` | Alias of `id` for explicit cross-module wiring | route/subnet documentation, audits |
 | `name` | SG name (the generated name when `name_prefix` was used) | tagging / monitoring / inventory |
@@ -216,7 +216,7 @@ module "app_sg" {
 
 ```hcl
 module "baseline_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-baseline-"
   vpc_id      = module.vpc.vpc_id
@@ -231,7 +231,7 @@ module "baseline_sg" {
 
 ```hcl
 module "app_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-app-"
   vpc_id      = module.vpc.vpc_id
@@ -258,7 +258,7 @@ provider "aws" {
 }
 
 module "tagged_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name   = "casey-tagged" # static name → applied as the Name tag; wins over any Name key in var.tags
   vpc_id = module.vpc.vpc_id
@@ -283,7 +283,7 @@ module "tagged_sg" {
 
 ```hcl
 module "corp_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-corp-"
   vpc_id      = module.vpc.vpc_id
@@ -300,7 +300,7 @@ module "corp_sg" {
 
 ```hcl
 module "dualstack_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-dualstack-"
   vpc_id      = module.vpc.vpc_id
@@ -322,7 +322,7 @@ module "dualstack_sg" {
 
 ```hcl
 module "s3_egress_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-s3egress-"
   vpc_id      = module.vpc.vpc_id
@@ -340,7 +340,7 @@ module "s3_egress_sg" {
 
 ```hcl
 module "diag_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-diag-"
   vpc_id      = module.vpc.vpc_id
@@ -358,7 +358,7 @@ module "diag_sg" {
 
 ```hcl
 module "mesh_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-mesh-"
   vpc_id      = module.vpc.vpc_id
@@ -378,7 +378,7 @@ module "mesh_sg" {
 # Two-stage pattern: create the SG, then reference its own id in a second apply,
 # or supply a known id. The self-reference allows members of the same SG to talk.
 module "cluster_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-cluster-"
   vpc_id      = module.vpc.vpc_id
@@ -397,7 +397,7 @@ module "cluster_sg" {
 
 ```hcl
 module "db_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-db-"
   vpc_id      = module.vpc.vpc_id
@@ -407,7 +407,7 @@ module "db_sg" {
   }
   # No egress_rules → DB makes no outbound connections. Add one only if it must.
 }
-# Wire module.db_sg.id into tf-mod-aws-rds vpc_security_group_ids.
+# Wire module.db_sg.id into terraform-aws-rds vpc_security_group_ids.
 ```
 </details>
 
@@ -419,7 +419,7 @@ module "db_sg" {
 # Prefer name_prefix in shared/regulated estates: a fixed name collides with
 # create_before_destroy because the replacement SG would need the same unique name.
 module "fixed_name_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name   = "casey-legacy-app" # fixed name — only when an external system pins to it
   vpc_id = module.vpc.vpc_id
@@ -434,7 +434,7 @@ module "fixed_name_sg" {
 # When two SGs reference each other, neither can be deleted until its rules are
 # revoked. Set revoke_rules_on_delete = true on ONE of them to break the cycle.
 module "sg_a" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix            = "casey-a-"
   vpc_id                 = module.vpc.vpc_id
@@ -454,7 +454,7 @@ module "sg_a" {
 # The secure default is deny-all egress (Terraform strips AWS's default allow-all).
 # This RELAXES it to allow all outbound — justify in your root module.
 module "open_egress_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-open-egress-"
   vpc_id      = module.vpc.vpc_id
@@ -474,7 +474,7 @@ module "open_egress_sg" {
 # A security group must live in the same Region as its VPC. There is NO us-east-1
 # global constraint here — pass whichever provider points at the VPC's Region.
 module "eu_sg" {
-  source    = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source    = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
   providers = { aws = aws.eu_west_1 }
 
   name_prefix = "casey-eu-app-"
@@ -493,7 +493,7 @@ module "eu_sg" {
 ```hcl
 # Networking foundation
 module "vpc" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-vpc?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-vpc?ref=v1.0.0"
   name   = "casey-core"
   cidr   = "10.0.0.0/16"
   #... subnets, NAT, flow logs
@@ -501,7 +501,7 @@ module "vpc" {
 
 # Edge: ALB accepts HTTPS from the internet
 module "alb_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-alb-"
   vpc_id      = module.vpc.vpc_id
@@ -516,7 +516,7 @@ module "alb_sg" {
 
 # App: accepts only from the ALB, talks only to the DB
 module "app_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-app-"
   vpc_id      = module.vpc.vpc_id
@@ -531,7 +531,7 @@ module "app_sg" {
 
 # Data: accepts only Postgres from the app
 module "db_sg" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-security-group?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-security-group?ref=v1.0.0"
 
   name_prefix = "casey-db-"
   vpc_id      = module.vpc.vpc_id
@@ -544,9 +544,9 @@ module "db_sg" {
 }
 
 # Wire the ids downstream:
-# module.alb_sg.id → tf-mod-aws-lb security_groups
-# module.app_sg.id → tf-mod-aws-ec2-instance / tf-mod-aws-ecs-service
-# module.db_sg.id → tf-mod-aws-rds vpc_security_group_ids
+# module.alb_sg.id → terraform-aws-lb security_groups
+# module.app_sg.id → terraform-aws-ec2-instance / terraform-aws-ecs-service
+# module.db_sg.id → terraform-aws-rds vpc_security_group_ids
 ```
 </details>
 
@@ -559,7 +559,7 @@ module "db_sg" {
 | `name` | `string` | `null` | Static SG name, also applied as the `Name` tag (wins over a `Name` key in `tags`). **FORCE-NEW**, mutually exclusive with `name_prefix`. |
 | `name_prefix` | `string` | `null` | Generates a unique name from this stem. **FORCE-NEW**, mutually exclusive with `name`. **Recommended** (create_before_destroy-safe). |
 | `vpc_id` | `string` | — **required** | VPC the SG is created in. **FORCE-NEW** — an SG cannot move VPCs. |
-| `description` | `string` | `"Managed by Terraform (tf-mod-aws-security-group)"` | SG description. **FORCE-NEW** — the API cannot edit it in place. |
+| `description` | `string` | `"Managed by Terraform (terraform-aws-security-group)"` | SG description. **FORCE-NEW** — the API cannot edit it in place. |
 | `revoke_rules_on_delete` | `bool` | `false` | Revoke all rules before deleting the SG. Set `true` on one side to break a circular SG dependency on destroy. |
 | `ingress_rules` | `map(object({...}))` | `{}` | Inbound rules keyed by stable label; rendered as `aws_vpc_security_group_ingress_rule`. Empty → deny all inbound. |
 | `egress_rules` | `map(object({...}))` | `{}` | Outbound rules — same schema as `ingress_rules`. Empty → deny all outbound (the AWS default allow-all is stripped). |
@@ -622,7 +622,7 @@ Other principles:
 - **One composite, one keystone.** The SG owns only what is meaningless without it — its ingress and egress rules. The VPC, peer SGs, and prefix lists it references are authored elsewhere.
 - **`for_each`, never `count`,** for rules — keyed by stable caller labels so reorders and single-rule edits don't churn the plan.
 - **Modern API only.** One-rule-per-resource (`aws_vpc_security_group_(in|e)gress_rule`), never inline blocks, never the deprecated `aws_security_group_rule`.
-- **Defense-in-depth.** The stateful SG is the primary, per-ENI control; pair it with a stateless `tf-mod-aws-network-acl` for a coarse subnet-level backstop.
+- **Defense-in-depth.** The stateful SG is the primary, per-ENI control; pair it with a stateless `terraform-aws-network-acl` for a coarse subnet-level backstop.
 - **Primary outputs `id` + `arn`**, plus `security_group_id`, the rule id/arn maps, and `tags_all`.
 
 ---
@@ -693,7 +693,7 @@ tags_all = { "DataClass" = "internal", "Environment" = "prod", "Name" = "casey-a
 - [Amazon VPC quotas → Security groups](https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html)
 - [Managed prefix lists](https://docs.aws.amazon.com/vpc/latest/userguide/managed-prefix-lists.html)
 - Terraform: [`aws_security_group`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) · [`aws_vpc_security_group_ingress_rule`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) · [`aws_vpc_security_group_egress_rule`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_egress_rule)
-- Sibling modules: `tf-mod-aws-vpc`, `tf-mod-aws-network-acl`, `tf-mod-aws-lb`, `tf-mod-aws-rds`, `tf-mod-aws-vpc-endpoint`
+- Sibling modules: `terraform-aws-vpc`, `terraform-aws-network-acl`, `terraform-aws-lb`, `terraform-aws-rds`, `terraform-aws-vpc-endpoint`
 - Module internals: `SCOPE.md`
 
 ---

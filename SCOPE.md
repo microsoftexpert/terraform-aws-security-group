@@ -1,4 +1,4 @@
-# tf-mod-aws-security-group — SCOPE
+# terraform-aws-security-group — SCOPE
 
 Composite module for a secure-by-default EC2 security group. It owns the
 security group plus its ingress and egress rules, modeled as **one rule per
@@ -24,7 +24,7 @@ The module manages **all** of the following (allow-list):
 
 Referenced by `id`/`arn`, never created here:
 
-- VPC — `vpc_id` (from `tf-mod-aws-vpc`)
+- VPC — `vpc_id` (from `terraform-aws-vpc`)
 - Peer/referenced security groups — `referenced_security_group_id` per rule
 - Prefix lists — `prefix_list_id` per rule
 - Resources the SG is attached to (instances, ALBs, RDS, ENIs) — owned elsewhere
@@ -33,10 +33,10 @@ Referenced by `id`/`arn`, never created here:
 
 | Input | Type | Source module |
 |---|---|---|
-| `vpc_id` | `string` (VPC id) | `tf-mod-aws-vpc` |
-| `ingress_rules[*].referenced_security_group_id` | `string` (SG id) | `tf-mod-aws-security-group` (peer SG) |
-| `egress_rules[*].referenced_security_group_id` | `string` (SG id) | `tf-mod-aws-security-group` (peer SG) |
-| `*.prefix_list_id` | `string` (PL id) | `tf-mod-aws-vpc-endpoint` (gateway endpoint PL) / managed prefix lists |
+| `vpc_id` | `string` (VPC id) | `terraform-aws-vpc` |
+| `ingress_rules[*].referenced_security_group_id` | `string` (SG id) | `terraform-aws-security-group` (peer SG) |
+| `egress_rules[*].referenced_security_group_id` | `string` (SG id) | `terraform-aws-security-group` (peer SG) |
+| `*.prefix_list_id` | `string` (PL id) | `terraform-aws-vpc-endpoint` (gateway endpoint PL) / managed prefix lists |
 
 ## Required IAM permissions
 
@@ -55,7 +55,7 @@ No `iam:PassRole` and no service-linked role required.
 
 - **No service-linked role** required. No account opt-in. No `us-east-1`
   global-resource constraint (SGs are regional, VPC-scoped).
-- **VPC must exist** — wire `vpc_id` from `tf-mod-aws-vpc`. Default-VPC use is
+- **VPC must exist** — wire `vpc_id` from `terraform-aws-vpc`. Default-VPC use is
   discouraged in a regulated environment.
 - **Referenced sources must exist in scope** — a `referenced_security_group_id`
   must be a peer SG in the same VPC (or reachable via accepted VPC peering /
